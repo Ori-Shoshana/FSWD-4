@@ -38,13 +38,19 @@ function App() {
     saveUserDocuments(updated);
   };
 
-  const closeDocument = (index) => {
-    const updated = [...documents];
-    updated.splice(index, 1);
-    setDocuments(updated);
-    saveUserDocuments(updated);
-    setActiveIndex(null);
-  };
+ const closeDocument = (index) => {
+  const doc = documents[index];
+  if (doc.text.trim() !== "") {
+    const confirmed = window.confirm(`Are you sure you want to close "${doc.name}"? Unsaved changes may be lost.`);
+    if (!confirmed) return;
+  }
+  const updated = [...documents];
+  updated.splice(index, 1);
+  setDocuments(updated);
+  saveUserDocuments(updated);
+  setActiveIndex(null);
+};
+
 
   if (!user) {
     return (
