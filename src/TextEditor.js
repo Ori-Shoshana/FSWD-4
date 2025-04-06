@@ -4,12 +4,21 @@ export default function TextEditor({ text, setText }) {
   const [bold, setBold] = useState(false);
   const [fontSize, setFontSize] = useState(16);
   const [color, setColor] = useState("#000000");
+  const [direction, setDirection] = useState("ltr");
 
   return (
     <div className="editor">
       <div className="controls">
         <button onClick={() => setBold(!bold)}>
           {bold ? "Unbold" : "Bold"}
+        </button>
+          
+        <button onClick={() => setDirection(direction === "ltr" ? "rtl" : "ltr")}>
+          Direction: {direction.toUpperCase()}
+        </button>
+
+        <button onClick={() => setText("")}>
+          Clear Text
         </button>
 
         <label>
@@ -34,6 +43,7 @@ export default function TextEditor({ text, setText }) {
       </div>
 
       <textarea
+        dir={direction}
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={10}
