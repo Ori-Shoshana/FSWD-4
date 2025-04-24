@@ -1,63 +1,79 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 
-export default function TextEditor({ text, setText, style, setStyleProp }) {
-  const textareaRef = useRef(null);
+export default function TextEditor({ segments, forwardMode, currentStyle, updateText, setStyleProp, setForwardMode }) {
   const [language, setLanguage] = useState('english');
   const [isUppercase, setIsUppercase] = useState(true);
   const [history, setHistory] = useState([]);
+  
+  // Full text for the textarea
+  const fullText = segments.map(segment => segment.text).join('');
 
-  const updateText = (newText) => {
-    setHistory((prev) => [...prev, text]);
-    setText(newText);
+  // Save current state to history
+  const addToHistory = () => {
+    setHistory(prev => [...prev, {
+      segments: JSON.parse(JSON.stringify(segments)),
+      fullText
+    }]);
   };
 
+  const handleTextChange = (e) => {
+    const newText = e.target.value;
+    
+    // Add to history before updating
+    addToHistory();
+    
+    // We need to handle deletions specially
+    if (newText.length < fullText.length) {
+      // This is a deletion operation
+      // Pass false to indicate we're deleting (not adding text)
+      updateText(newText, newText.length, false);
+    } else {
+      // Normal text addition
+      updateText(newText, newText.length, true);
+    }
+  };
+
+  // Handle keyboard key insertions
   const insertAtCursor = (char) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const newText = text.slice(0, start) + char + text.slice(end);
-
-    updateText(newText);
-
-    requestAnimationFrame(() => {
-      textarea.selectionStart = textarea.selectionEnd = start + char.length;
-      textarea.focus();
-    });
+    // Add to history
+    addToHistory();
+    
+    const newText = fullText + char;
+    updateText(newText, newText.length, true);
   };
 
   const deleteChar = () => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    if (start === 0) return;
-    const newText = text.slice(0, start - 1) + text.slice(start);
-    updateText(newText);
-    requestAnimationFrame(() => {
-      textarea.selectionStart = textarea.selectionEnd = start - 1;
-      textarea.focus();
-    });
+    if (fullText.length === 0) return;
+    
+    // Add to history
+    addToHistory();
+    
+    const newText = fullText.slice(0, -1);
+    // Pass false to indicate we're deleting (not adding text)
+    updateText(newText, newText.length, false);
   };
 
   const deleteWord = () => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const before = text.slice(0, start);
-    const after = text.slice(start);
-    const newBefore = before.replace(/\s*\S+\s*$/, '');
-    const newText = newBefore + after;
-    updateText(newText);
-    requestAnimationFrame(() => {
-      textarea.selectionStart = textarea.selectionEnd = newBefore.length;
-      textarea.focus();
-    });
+    if (fullText.length === 0) return;
+    
+    // Add to history
+    addToHistory();
+    
+    let i = fullText.length - 1;
+    while (i >= 0 && fullText[i] === ' ') i--;
+    while (i >= 0 && fullText[i] !== ' ') i--;
+    
+    const newText = fullText.slice(0, i + 1);
+    // Pass false to indicate we're deleting (not adding text)
+    updateText(newText, newText.length, false);
   };
 
   const clearText = () => {
-    updateText('');
-    textareaRef.current?.focus();
+    // Add to history
+    addToHistory();
+    
+    // Pass false to indicate we're deleting (not adding text)
+    updateText('', 0, false);
   };
 
   const handleFindAndReplace = () => {
@@ -65,57 +81,183 @@ export default function TextEditor({ text, setText, style, setStyleProp }) {
     if (!find) return;
     const replace = prompt(`Replace '${find}' with:`);
     if (replace === null) return;
-    const newText = text.split(find).join(replace);
-    updateText(newText);
+    
+    // Add to history
+    addToHistory();
+    
+    const newText = fullText.split(find).join(replace);
+    // This is a mixed operation, but we'll treat it as not adding new text
+    updateText(newText, newText.length, false);
   };
 
   const handleUndo = () => {
     if (history.length === 0) return;
+    
     const previous = history[history.length - 1];
-    setText(previous);
-    setHistory((prev) => prev.slice(0, -1));
-  };
-
-  const getKeysByLanguage = () => {
-    switch (language) {
-      case 'english':
-        const base = isUppercase ? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' : 'abcdefghijklmnopqrstuvwxyz';
-        return [...base];
-      case 'hebrew':
-        return [...'אבגדהוזחטיכלמנסעפצקרשתםןףץ'];
-      case 'emoji':
-        return ['😀', '😁', '😂', '🤣', '😎', '❤️', '🔥', '👍', '👏'];
-      case 'symbols':
-        return [
-          ...'0123456789', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '=', '+',
-          '[', ']', '{', '}', ';', ':', "'", '"', ',', '.', '<', '>', '/', '?', '\\', '|', '`', '~'
-        ];
-      default:
-        return [];
-    }
+    // When restoring from history, preserve segments
+    updateText(previous.fullText, previous.fullText.length, false, previous.segments);
+    
+    setHistory(prev => prev.slice(0, -1));
   };
 
   const handleStyleChange = (prop, value) => {
-    setStyle(prev => ({ ...prev, [prop]: value }));
+    const applyMode = forwardMode ? 'forward' : 'all';
+    setStyleProp(prop, value, applyMode);
+  };
+
+  const toggleForwardMode = () => {
+    setForwardMode(!forwardMode);
+  };
+
+  // Render styled segments
+  const renderStyledSegments = () => {
+    return segments.map((segment, index) => (
+      <span key={index} style={segment.style}>
+        {segment.text}
+      </span>
+    ));
+  };
+
+  const getKeysByLanguage = () => {
+    const numberRow = [...'1234567890'];
+
+    switch (language) {
+      case 'english': {
+        const english = [
+          [...'QWERTYUIOP'],
+          [...'ASDFGHJKL'],
+          [...'ZXCVBNM']
+        ];
+        const withCase = isUppercase
+          ? english
+          : english.map(row => row.map(c => c.toLowerCase()));
+        return [numberRow, ...withCase];
+      }
+
+      case 'hebrew': {
+        const hebrew = [
+          [...'קראטוןםפ'],
+          [...'שדגכעיחלך'],
+          [...'זסבהנמצתץ']
+        ];
+        return [numberRow, ...hebrew];
+      }
+
+      case 'emoji': {
+        return [
+          ['😀', '😃', '😄', '😁', '😆', '🤣', '😂', '🙂', '🙃', '😉'],
+          ['😍', '🥰', '😘', '😗', '😚', '😋', '😜', '🤪', '😎', '🤩'],
+          ['👍', '👎', '👏', '🙏', '🤝', '🙌', '💪', '🧠', '🦾', '🫶'],
+          ['🔥', '❤️', '💔', '💯', '✨', '🎉', '🌟', '⚡', '❄️', '☀️']
+        ];
+      }
+
+      case 'symbols': {
+        return [
+          numberRow,
+          ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')'],
+          ['-', '_', '=', '+', '[', ']', '{', '}', ';', ':'],
+          ["'", '"', ',', '.', '<', '>', '/', '?', '\\', '|'],
+          ['`', '~']
+        ];
+      }
+
+      default:
+        return [numberRow];
+    }
   };
 
   const keyboardKeys = getKeysByLanguage();
 
   return (
     <div className="text-editor">
-      <textarea
-        ref={textareaRef}
-        className="text-area"
-        value={text}
-        onChange={e => updateText(e.target.value)}
-        placeholder="Type here..."
-      />
+      <style>
+        {`
+          .editor-container {
+            position: relative;
+            margin-bottom: 15px;
+          }
+          
+          .editor-textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            resize: vertical;
+            font-family: Arial;
+            font-size: 16px;
+            line-height: 1.5;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 2;
+            background-color: transparent;
+            color: transparent;
+            caret-color: black;
+          }
+          
+          .editor-textarea::selection {
+            background-color: rgba(0, 0, 255, 0.3);
+          }
+          
+          .editor-display {
+            width: 100%;
+            min-height: 150px;
+            padding: 10px;
+            border: 1px solid transparent;
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+            font-family: Arial;
+            font-size: 16px;
+            line-height: 1.5;
+            pointer-events: none;
+            position: relative;
+            z-index: 1;
+          }
+        `}
+      </style>
+      
+      {/* Editor container with overlay approach */}
+      <div className="editor-container">
+        {/* Styled display underneath */}
+        <div className="editor-display">
+          {renderStyledSegments()}
+        </div>
+        
+        {/* Transparent textarea on top for input */}
+        <textarea
+          className="editor-textarea" 
+          value={fullText}
+          onChange={handleTextChange}
+          placeholder="Type here..."
+        />
+      </div>
 
       <div className="style-controls">
+        <div className="edit-mode-toggle">
+          <button 
+            onClick={toggleForwardMode}
+            className={`mode-button ${forwardMode ? 'active' : ''}`}
+            style={{
+              backgroundColor: forwardMode ? '#4caf50' : '#f0f0f0',
+              color: forwardMode ? 'white' : 'black',
+              fontWeight: 'bold',
+              padding: '8px 12px',
+              margin: '0 8px 8px 0',
+              border: '1px solid #ccc',
+              borderRadius: '4px'
+            }}
+          >
+            סגנון: {forwardMode ? 'מעכשיו והלאה' : 'כל הטקסט'}
+          </button>
+        </div>
+
         <label>
           Font:
-          <select value={style.fontFamily} onChange={e => setStyleProp('fontFamily', e.target.value)}>
-          <option value="Arial">Arial</option>
+          <select value={currentStyle.fontFamily} onChange={e => handleStyleChange('fontFamily', e.target.value)}>
+            <option value="Arial">Arial</option>
             <option value="Courier New">Courier New</option>
             <option value="Georgia">Georgia</option>
             <option value="Tahoma">Tahoma</option>
@@ -124,8 +266,8 @@ export default function TextEditor({ text, setText, style, setStyleProp }) {
         </label>
         <label>
           Size:
-          <select value={style.fontSize} onChange={e => setStyleProp('fontSize', e.target.value)}>
-          <option value="16px">16px</option>
+          <select value={currentStyle.fontSize} onChange={e => handleStyleChange('fontSize', e.target.value)}>
+            <option value="16px">16px</option>
             <option value="20px">20px</option>
             <option value="24px">24px</option>
             <option value="32px">32px</option>
@@ -135,8 +277,8 @@ export default function TextEditor({ text, setText, style, setStyleProp }) {
           Color:
           <input
             type="color"
-            value={style.color}
-            onChange={e => setStyleProp('color', e.target.value)}
+            value={currentStyle.color}
+            onChange={e => handleStyleChange('color', e.target.value)}
           />
         </label>
       </div>
@@ -162,12 +304,29 @@ export default function TextEditor({ text, setText, style, setStyleProp }) {
       </div>
 
       <div className="virtual-keyboard">
-        {keyboardKeys.map((key, i) => (
-          <button key={i} onClick={() => insertAtCursor(key)}>
-            {key}
-          </button>
+        {keyboardKeys.map((row, rowIndex) => (
+          <div className="keyboard-row" key={rowIndex}>
+            {row.map((key, keyIndex) => (
+              <button key={keyIndex} onClick={() => insertAtCursor(key)}>
+                {key}
+              </button>
+            ))}
+          </div>
         ))}
       </div>
+      
+      {forwardMode && (
+        <div className="current-style-preview" style={{ 
+          margin: '10px 0', 
+          padding: '10px',
+          border: '1px solid #ccc',
+          borderRadius: '4px',
+          backgroundColor: '#f9f9f9'
+        }}>
+          <p>טקסט חדש יוצג בסגנון הבא:</p>
+          <div style={currentStyle}>דוגמה לטקסט בסגנון הנבחר</div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export default function FilePanel({ text, setText, style, setStyle, setFileName }) {
   const [fileName, setFileNameInput] = useState('');
   const [fileList, setFileList] = useState([]);
 
-  useEffect(() => {
+  const refreshFileList = () => {
     const keys = Object.keys(localStorage).filter(key => key.startsWith('file:'));
-    setFileList(keys.map(key => key.slice(5))); // הסרת prefix
-  }, []);
+    setFileList(keys.map(key => key.slice(5))); // מסיר את 'file:' מהתחלה
+  };
 
   const saveFile = () => {
     if (!fileName.trim()) {
@@ -17,7 +17,7 @@ export default function FilePanel({ text, setText, style, setStyle, setFileName 
     const data = { text, style };
     localStorage.setItem('file:' + fileName, JSON.stringify(data));
     if (!fileList.includes(fileName)) {
-      setFileList([...fileList, fileName]);
+      setFileList(prev => [...prev, fileName]);
     }
     setFileName(fileName); // ← מעדכן את ה־entry עם שם הקובץ
     alert('File saved!');
@@ -31,7 +31,7 @@ export default function FilePanel({ text, setText, style, setStyle, setFileName 
       const parsedStyle = typeof style === 'string' ? JSON.parse(style) : style;
       setText(text);
       setStyle(parsedStyle);
-      setFileName(name); // ← חשוב! מעדכן את entry הפעיל
+      setFileName(name);
       setFileNameInput(name);
     } catch (err) {
       alert("Error loading file");
@@ -51,7 +51,11 @@ export default function FilePanel({ text, setText, style, setStyle, setFileName 
 
       <div>
         <label>📂 Open file:</label>
-        <select onChange={e => loadFile(e.target.value)} defaultValue="">
+        <select
+          onClick={refreshFileList}
+          onChange={e => loadFile(e.target.value)}
+          defaultValue=""
+        >
           <option value="" disabled>Choose a file</option>
           {fileList.map((name, i) => (
             <option key={i} value={name}>{name}</option>
