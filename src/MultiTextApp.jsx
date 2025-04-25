@@ -3,7 +3,7 @@ import TextDisplay from './components/TextDisplay';
 import TextEditor from './components/TextEditor';
 import FilePanel from './components/FilePanel';
 
-export default function MultiTextApp() {
+export default function MultiTextApp({ currentUser }) {
   const [entries, setEntries] = useState([
     { 
       id: 1, 
@@ -200,28 +200,33 @@ export default function MultiTextApp() {
 
   const closeEntry = (id) => {
     const entry = entries.find(e => e.id === id);
-    const key = 'file:' + (entry.fileName || `entry-${id}`);
-
-    let needsSave = true;
-
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      try {
-        const savedData = JSON.parse(saved);
-        const fullText = getFullText(entry);
-        needsSave = savedData.text !== fullText;
-      } catch {
-        needsSave = true;
+    
+    // Check if file has unsaved changes
+    if (entry.fileName) {
+      const fileKey = `user:${currentUser}:file:${entry.fileName}`;
+      const saved = localStorage.getItem(fileKey);
+      
+      let needsSave = true;
+      
+      if (saved) {
+        try {
+          const savedData = JSON.parse(saved);
+          const fullText = getFullText(entry);
+          needsSave = savedData.text !== fullText;
+        } catch {
+          needsSave = true;
+        }
       }
-    }
-
-    if (needsSave) {
-      const confirmSave = window.confirm("This entry has unsaved changes. Save before closing?");
-      if (confirmSave) {
-        localStorage.setItem(key, JSON.stringify({ 
-          text: getFullText(entry), 
-          style: entry.currentStyle
-        }));
+      
+      if (needsSave) {
+        const confirmSave = window.confirm("This entry has unsaved changes. Save before closing?");
+        if (confirmSave) {
+          localStorage.setItem(fileKey, JSON.stringify({ 
+            text: getFullText(entry), 
+            style: entry.currentStyle,
+            segments: entry.segments
+          }));
+        }
       }
     }
 
@@ -271,6 +276,7 @@ export default function MultiTextApp() {
         style={activeEntry.currentStyle}
         setStyle={setStyle}
         setFileName={setFileNameToEntry}
+        currentUser={currentUser}
       />
 
       <TextEditor
