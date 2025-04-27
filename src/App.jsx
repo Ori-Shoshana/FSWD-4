@@ -6,7 +6,8 @@ export default function App() {
   // Initialize with checking localStorage only once
   const initialUser = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
   const [currentUser, setCurrentUser] = useState(initialUser);
-  
+  const [darkMode, setDarkMode] = useState(true); // מצב התחלתי: כהה
+
   const handleLogin = (username) => {
     setCurrentUser(username);
   };
@@ -16,35 +17,31 @@ export default function App() {
     setCurrentUser(null);
   };
   
+  const toggleDarkMode = () => {
+    const newMode = !darkMode;
+    setDarkMode(newMode);
+    document.body.className = newMode ? 'dark' : 'light';
+  };
   if (!currentUser) {
     return <Login onLogin={handleLogin} />;
   }
   
   return (
-    <div>
-      <div className="user-header" style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '10px 20px',
-        backgroundColor: '#f0f0f0',
-        borderBottom: '1px solid #ccc'
-      }}>
-        <h3>ברוך הבא, {currentUser}</h3>
-        <button 
-          onClick={handleLogout}
-          style={{
-            padding: '8px 15px',
-            backgroundColor: '#f44336',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          התנתק
-        </button>
-      </div>
+       <div className="app">
+      <header className="app-header">
+        <div className="user-info">
+          ברוך הבא, {currentUser}
+        </div>
+        <div className="header-actions">
+        <button onClick={toggleDarkMode} className="toggle-theme-button">
+  {darkMode ? '☀️ Light' : '🌙 Dark'}
+</button>
+
+          <button onClick={handleLogout} className="logout-button">
+            🚪 התנתק
+          </button>
+        </div>
+      </header>
       
       <MultiTextApp currentUser={currentUser} />
     </div>
