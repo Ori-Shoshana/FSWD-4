@@ -2,17 +2,24 @@ import { useState } from 'react';
 import VirtualKeyboard from './VirtualKeyboard';
 
 export default function TextEditor({ segments, forwardMode, currentStyle, updateText, setStyleProp, setForwardMode }) {
-  const [history, setHistory] = useState([]);
+  const [undoHistory, setUndoHistory] = useState([]);
+  const [redoHistory, setRedoHistory] = useState([]);
 
   const fullText = segments.map(segment => segment.text).join('');
 
+  // Adds current text state to undo history and clears redo history
   const addToHistory = () => {
-    setHistory(prev => [...prev, {
+    // Add current state to undo history
+    setUndoHistory(prev => [...prev, {
       segments: JSON.parse(JSON.stringify(segments)),
       fullText
     }]);
+    
+    // Clear redo history when making a new change
+    setRedoHistory([]);
   };
 
+  // Handles text changes from the textarea and updates segments accordingly
   const handleTextChange = (e) => {
     const newText = e.target.value;
     addToHistory();
@@ -23,12 +30,14 @@ export default function TextEditor({ segments, forwardMode, currentStyle, update
     }
   };
 
+  // Inserts a character at the end of the text
   const insertAtCursor = (char) => {
     addToHistory();
     const newText = fullText + char;
     updateText(newText, newText.length, true);
   };
 
+  // Deletes the last character in the text
   const deleteChar = () => {
     if (fullText.length === 0) return;
     addToHistory();
@@ -36,6 +45,7 @@ export default function TextEditor({ segments, forwardMode, currentStyle, update
     updateText(newText, newText.length, false);
   };
 
+  // Deletes the last word in the text
   const deleteWord = () => {
     if (fullText.length === 0) return;
     addToHistory();
@@ -46,11 +56,13 @@ export default function TextEditor({ segments, forwardMode, currentStyle, update
     updateText(newText, newText.length, false);
   };
 
+  // Clears all text from the editor
   const clearText = () => {
     addToHistory();
     updateText('', 0, false);
   };
 
+  // Implements find and replace functionality with user prompts
   const handleFindAndReplace = () => {
     const find = prompt('Enter character to find:');
     if (!find) return;
@@ -61,23 +73,59 @@ export default function TextEditor({ segments, forwardMode, currentStyle, update
     updateText(newText, newText.length, false);
   };
 
+  // Reverts to the previous text state from history
   const handleUndo = () => {
-    if (history.length === 0) return;
-    const previous = history[history.length - 1];
+    if (undoHistory.length === 0) return;
+    
+    // Get the last item from history
+    const previous = undoHistory[undoHistory.length - 1];
+    
+    // Add current state to redo history
+    setRedoHistory(prev => [...prev, {
+      segments: JSON.parse(JSON.stringify(segments)),
+      fullText
+    }]);
+    
+    // Update text with the previous state
     updateText(previous.fullText, previous.fullText.length, false, previous.segments);
-    setHistory(prev => prev.slice(0, -1));
+    
+    // Remove the used history item
+    setUndoHistory(prev => prev.slice(0, -1));
   };
 
+  // Restores a previously undone text state
+  const handleRedo = () => {
+    if (redoHistory.length === 0) return;
+    
+    // Get the last item from redo history
+    const next = redoHistory[redoHistory.length - 1];
+    
+    // Add current state to undo history
+    setUndoHistory(prev => [...prev, {
+      segments: JSON.parse(JSON.stringify(segments)),
+      fullText
+    }]);
+    
+    // Update text with the next state
+    updateText(next.fullText, next.fullText.length, false, next.segments);
+    
+    // Remove the used redo history item
+    setRedoHistory(prev => prev.slice(0, -1));
+  };
+
+  // Changes a specific style property for the text
   const handleStyleChange = (prop, value) => {
     const applyMode = forwardMode ? 'forward' : 'all';
     setStyleProp(prop, value, applyMode);
   };
 
+  // Toggles between applying styles to all text or only to new text
   const toggleForwardMode = () => {
     setForwardMode(!forwardMode);
   };
 
-  const renderStyledSegments = () => {
+  // Renders segments with their respective styles
+  const StyledSegments = () => {
     return segments.map((segment, index) => (
       <span key={index} style={segment.style}>
         {segment.text}
@@ -89,7 +137,7 @@ export default function TextEditor({ segments, forwardMode, currentStyle, update
     <div className="text-editor">
       <div className="editor-container">
         <div className="editor-display">
-          {renderStyledSegments()}
+          {StyledSegments()}
         </div>
         <textarea
           className="editor-textarea"
@@ -143,7 +191,8 @@ export default function TextEditor({ segments, forwardMode, currentStyle, update
         <button onClick={deleteWord}>Delete Word</button>
         <button onClick={clearText}>Clear All</button>
         <button onClick={handleFindAndReplace}>Find & Replace</button>
-        <button onClick={handleUndo}>Undo</button>
+        <button onClick={handleUndo} disabled={undoHistory.length === 0}>↩️ Undo</button>
+        <button onClick={handleRedo} disabled={redoHistory.length === 0}>↪️ Redo</button>
       </div>
 
       {/* Virtual Keyboard component */}

@@ -19,11 +19,12 @@ export default function MultiTextApp({ currentUser }) {
 
   const activeEntry = entries.find(e => e.id === activeId);
 
-  // Helper to get full text
+  // Helper to concatenate all segment texts to get the full document text
   const getFullText = (entry) => {
     return entry.segments.map(segment => segment.text).join('');
   };
 
+  // Updates a specific style property with mode support (all text or forward only)
   const handleStyleChange = (prop, value, applyMode = 'all') => {
     setEntries(prev =>
       prev.map(e => {
@@ -52,16 +53,21 @@ export default function MultiTextApp({ currentUser }) {
     );
   };
 
+  // Updates text content with support for loading from files, adding/removing text
   const updateText = (newText, cursorPos, isAddingText = true, customSegments = null) => {
     setEntries(prev =>
       prev.map(e => {
         if (e.id !== activeId) return e;
         
-        // If custom segments are provided (from history), use them
+        // If custom segments are provided (from loaded file), use them
         if (customSegments) {
           return {
             ...e,
-            segments: customSegments
+            segments: customSegments,
+            // Also update currentStyle to match the last segment's style
+            currentStyle: customSegments.length > 0 
+              ? customSegments[customSegments.length - 1].style 
+              : e.currentStyle
           };
         }
         
@@ -146,6 +152,7 @@ export default function MultiTextApp({ currentUser }) {
     );
   };
 
+  // Updates the complete style object for all or future text
   const setStyle = (newStyle, applyMode = 'all') => {
     setEntries(prev =>
       prev.map(e => {
@@ -172,18 +179,21 @@ export default function MultiTextApp({ currentUser }) {
     );
   };
 
+  // Sets the forward mode flag to control style application
   const toggleForwardMode = (mode) => {
     setEntries(prev =>
       prev.map(e => e.id === activeId ? { ...e, forwardMode: mode } : e)
     );
   };
 
+  // Updates the filename for the active entry
   const setFileNameToEntry = (name) => {
     setEntries(prev =>
       prev.map(e => e.id === activeId ? { ...e, fileName: name } : e)
     );
   };
 
+  // Creates a new empty text entry and makes it active
   const addEntry = () => {
     const newId = Date.now();
     setEntries(prev => [...prev, {
@@ -198,6 +208,7 @@ export default function MultiTextApp({ currentUser }) {
     setActiveId(newId);
   };
 
+  // Closes an entry with unsaved changes confirmation
   const closeEntry = (id) => {
     const entry = entries.find(e => e.id === id);
     
@@ -272,11 +283,14 @@ export default function MultiTextApp({ currentUser }) {
 
       <FilePanel
         text={getFullText(activeEntry)}
-        setText={(text) => updateText(text, text.length)}
+        setText={(text, cursorPos, isAddingText, customSegments) => 
+          updateText(text, cursorPos, isAddingText, customSegments)
+        }
         style={activeEntry.currentStyle}
         setStyle={setStyle}
         setFileName={setFileNameToEntry}
         currentUser={currentUser}
+        activeEntry={activeEntry}
       />
 
       <TextEditor

@@ -1,4 +1,5 @@
 export default function TextDisplay({ segments, fileName }) {
+  // Renders text segments with their respective styles and shows filename
   return (
     <div>
       <div style={{ fontSize: '0.9em', color: '#555', marginBottom: '4px' }}>

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 
-export default function FilePanel({ text, setText, style, setStyle, setFileName, currentUser }) {
+export default function FilePanel({ text, setText, style, setStyle, setFileName, currentUser, activeEntry }) {
   const [fileName, setFileNameInput] = useState('');
 
+  // Fetches initial file list from localStorage for the current user
   const getInitialFileList = () => {
     if (!currentUser) return [];
     const prefix = `user:${currentUser}:file:`;
@@ -12,23 +13,32 @@ export default function FilePanel({ text, setText, style, setStyle, setFileName,
 
   const [fileList, setFileList] = useState(getInitialFileList());
 
+  // Returns the user-specific localStorage prefix for files
   const getUserFilePrefix = () => {
     return `user:${currentUser}:file:`;
   };
 
+  // Updates the file list by scanning localStorage for the current user's files
   const refreshFileList = () => {
     const prefix = getUserFilePrefix();
     const keys = Object.keys(localStorage).filter(key => key.startsWith(prefix));
     setFileList(keys.map(key => key.slice(prefix.length)));
   };
 
+  // Saves the current text and style information to localStorage
   const saveFile = () => {
     if (!fileName.trim()) {
       alert('נא להזין שם קובץ');
       return;
     }
 
-    const data = { text, style };
+    // Save the full data including segments from the active entry
+    const data = {
+      text,
+      style,
+      segments: activeEntry.segments
+    };
+    
     const fileKey = getUserFilePrefix() + fileName;
 
     localStorage.setItem(fileKey, JSON.stringify(data));
@@ -41,6 +51,7 @@ export default function FilePanel({ text, setText, style, setStyle, setFileName,
     alert('הקובץ נשמר בהצלחה!');
   };
 
+  // Loads a file from localStorage and updates the text editor with its content
   const loadFile = (name) => {
     const fileKey = getUserFilePrefix() + name;
     const raw = localStorage.getItem(fileKey);
@@ -51,11 +62,20 @@ export default function FilePanel({ text, setText, style, setStyle, setFileName,
     }
 
     try {
-      const { text, style } = JSON.parse(raw);
-      const parsedStyle = typeof style === 'string' ? JSON.parse(style) : style;
-
-      setText(text);
-      setStyle(parsedStyle);
+      const data = JSON.parse(raw);
+      const { text, style, segments } = data;
+      
+      // If we have segments, use those (new format)
+      if (segments && Array.isArray(segments)) {
+        // Pass the segments to updateText using a custom segments parameter
+        setText(text, text.length, false, segments);
+      } else {
+        // If no segments (old format), just use the text and style
+        setText(text);
+        const parsedStyle = typeof style === 'string' ? JSON.parse(style) : style;
+        setStyle(parsedStyle);
+      }
+      
       setFileName(name);
       setFileNameInput(name);
     } catch (err) {
@@ -64,6 +84,7 @@ export default function FilePanel({ text, setText, style, setStyle, setFileName,
     }
   };
 
+  // Deletes a file from localStorage after confirmation
   const deleteFile = (name) => {
     if (confirm(`האם אתה בטוח שברצונך למחוק את הקובץ "${name}"?`)) {
       const fileKey = getUserFilePrefix() + name;
@@ -102,8 +123,6 @@ export default function FilePanel({ text, setText, style, setStyle, setFileName,
         </button>
       </div>
       
-      {/* Remove the redundant file selector dropdown */}
-  
       {fileList.length > 0 ? (
         <ul className="file-list">
           {fileList.map((name, i) => (

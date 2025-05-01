@@ -6,6 +6,7 @@ export default function Login({ onLogin }) {
   const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState('');
 
+  // Handles both login and registration logic based on isRegistering state
   const handleSubmit = (e) => {
     e.preventDefault();
     

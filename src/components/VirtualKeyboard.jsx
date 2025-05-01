@@ -8,6 +8,7 @@ export default function VirtualKeyboard({
   const [language, setLanguage] = useState('english');
   const [isUppercase, setIsUppercase] = useState(true);
 
+  // Returns keyboard layout based on selected language and case settings
   const getKeysByLanguage = () => {
     const numberRow = [...'1234567890'];
 
@@ -57,6 +58,7 @@ export default function VirtualKeyboard({
 
   const keyboardKeys = getKeysByLanguage();
 
+  // Handles keyboard button clicks and inserts the character into the editor
   const handleKeyPress = (key) => {
     onKeyPress(key === 'Space' ? ' ' : key);
   };
@@ -79,8 +81,12 @@ export default function VirtualKeyboard({
         {keyboardKeys.map((row, rowIndex) => (
           <div className="keyboard-row" key={rowIndex}>
             {row.map((key, keyIndex) => (
-              <button key={keyIndex} onClick={() => handleKeyPress(key)}>
-                {key === 'Space' ? '␣' : key}
+              <button 
+                key={keyIndex} 
+                onClick={() => handleKeyPress(key)}
+                className={key === 'Space' ? 'space-key' : ''}
+              >
+                {key === 'Space' ? 'Space' : key}
               </button>
             ))}
           </div>

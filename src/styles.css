@@ -948,3 +948,37 @@ body.dark .keyboard-action-button {
 body.dark .keyboard-action-button:hover {
   background-color: var(--gray-600);
 }
+
+
+/* Add these styles to your existing styles.css file */
+
+/* Style for wider space button */
+.space-key {
+  width: 200px !important; /* Make the space button wider */
+  max-width: 90%; /* Ensure it fits on mobile */
+  justify-content: center;
+  margin: 0 auto; /* Center the button in its row */
+  background-color: var(--primary-light) !important;
+  color: var(--primary) !important;
+  font-weight: 600;
+}
+
+body.dark .space-key {
+  background-color: var(--gray-700) !important;
+  color: var(--gray-300) !important;
+}
+
+.space-key:hover {
+  background-color: var(--primary) !important;
+  color: white !important;
+}
+
+body.dark .space-key:hover {
+  background-color: var(--primary) !important;
+  color: white !important;
+}
+
+/* Make the space button's row centered */
+.keyboard-row:last-child {
+  justify-content: center;
+}
